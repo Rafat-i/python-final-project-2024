@@ -4,11 +4,26 @@ import sqlite3
 import io
 import matplotlib
 
+from functools import wraps
+from flask import request, jsonify
+
 matplotlib.use('Agg')  # Required for non-interactive backend
 import matplotlib.pyplot as plt
 from datetime import datetime
 
 app = Flask(__name__)
+
+# Set of blocked IP addresses
+BLOCKED_IPS = set()#{'127.0.0.1'}
+
+# IP blocking middleware
+def check_ip(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if request.remote_addr in BLOCKED_IPS:
+            return jsonify({'error': 'blocked'}), 403
+        return f(*args, **kwargs)
+    return wrapper
 
 
 def get_db():
@@ -18,6 +33,7 @@ def get_db():
 
 
 @app.route('/')
+@check_ip
 def index():
     conn = get_db()
     # Get categories for the dropdown
@@ -34,6 +50,7 @@ def index():
 
 
 @app.route('/expenses', methods=['POST'])
+@check_ip
 def add_expense():
     amount = request.form['amount']
     description = request.form['description']
@@ -50,6 +67,7 @@ def add_expense():
 
 
 @app.route('/expenses/<int:id>', methods=['DELETE'])
+@check_ip
 def delete_expense(id):
     conn = get_db()
     conn.execute('DELETE FROM expenses WHERE id = ?', (id,))
@@ -59,6 +77,7 @@ def delete_expense(id):
 
 
 @app.route('/expenses/chart')
+@check_ip
 def expense_chart():
     conn = get_db()
     # Get expenses grouped by category
