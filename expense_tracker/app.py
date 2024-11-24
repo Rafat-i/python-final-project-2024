@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
 import sqlite3
 import io
@@ -14,7 +13,7 @@ from datetime import datetime
 app = Flask(__name__)
 
 # Set of blocked IP addresses
-BLOCKED_IPS = set()#{'127.0.0.1'}
+BLOCKED_IPS = set()  # {'127.0.0.1'}
 
 # IP blocking middleware
 def check_ip(f):
@@ -36,8 +35,10 @@ def get_db():
 @check_ip
 def index():
     conn = get_db()
+
     # Get categories for the dropdown
     categories = conn.execute('SELECT * FROM categories').fetchall()
+
     # Get all expenses
     expenses = conn.execute('''
         SELECT e.*, c.name as category_name 
@@ -45,8 +46,35 @@ def index():
         JOIN categories c ON e.category_id = c.id 
         ORDER BY e.date DESC
     ''').fetchall()
+
+    # Get monthly budget overview with progress calculation
+    budget_overview = conn.execute('''
+        SELECT 
+            c.name,
+            c.monthly_budget,
+            COALESCE(SUM(e.amount), 0) AS total_spent
+        FROM categories c
+        LEFT JOIN expenses e ON c.id = e.category_id
+            AND strftime('%Y-%m', e.date) = strftime('%Y-%m', 'now')
+        GROUP BY c.id, c.name, c.monthly_budget
+    ''').fetchall()
+
+    # Add progress calculations to budget_overview
+    budget_overview = [
+        {
+            **row,
+            "progress": min((row["total_spent"] / row["monthly_budget"]) * 100, 100) 
+            if row["monthly_budget"] > 0 else 0
+        }
+        for row in budget_overview
+    ]
+
     conn.close()
-    return render_template('index.html', expenses=expenses, categories=categories)
+
+    return render_template('index.html',
+                           expenses=expenses,
+                           categories=categories,
+                           budget_overview=budget_overview)
 
 
 @app.route('/expenses', methods=['POST'])
@@ -104,6 +132,28 @@ def expense_chart():
     buf.seek(0)
 
     return send_file(buf, mimetype='image/png')
+
+
+@app.route('/budgets', methods=['GET', 'POST'])
+@check_ip
+def manage_budgets():
+    conn = get_db()
+    if request.method == 'POST':
+        # Update budgets
+        budgets = request.form.getlist('budget')
+        category_ids = request.form.getlist('category_id')
+        for category_id, budget in zip(category_ids, budgets):
+            conn.execute('''
+                UPDATE categories
+                SET monthly_budget = ?
+                WHERE id = ?
+            ''', (budget, category_id))
+        conn.commit()
+
+    # Fetch categories and budgets
+    categories = conn.execute('SELECT * FROM categories').fetchall()
+    conn.close()
+    return render_template('budgets.html', categories=categories)
 
 
 if __name__ == '__main__':

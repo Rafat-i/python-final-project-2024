@@ -1,4 +1,3 @@
-# init_db.py
 import sqlite3
 def init_db():
     # Connect to SQLite (creates db file if it doesn't exist)
@@ -11,7 +10,8 @@ def init_db():
     cursor.execute('''
     CREATE TABLE categories (
         id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL UNIQUE
+        name TEXT NOT NULL UNIQUE,
+        monthly_budget DECIMAL(10,2) NOT NULL
     )
     ''')
     # Create expenses table
@@ -25,15 +25,15 @@ def init_db():
         FOREIGN KEY (category_id) REFERENCES categories(id)
     )
     ''')
-    # Insert default categories
+    # Insert default categories with names and monthly budgets
     default_categories = [
-        ('Groceries',),
-        ('Transportation',),
-        ('Entertainment',),
-        ('Utilities',),
-        ('Other',)
+        ('Groceries', 500.00),
+        ('Transportation', 200.00),
+        ('Entertainment', 150.00),
+        ('Utilities', 300.00),
+        ('Other', 100.00)
     ]
-    cursor.executemany('INSERT INTO categories (name) VALUES (?)', default_categories)
+    cursor.executemany('INSERT INTO categories (name, monthly_budget) VALUES (?, ?)', default_categories)
     # Commit and close
     conn.commit()
     conn.close()

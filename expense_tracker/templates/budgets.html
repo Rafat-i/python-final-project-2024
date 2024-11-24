@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manage Budgets</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+        button { margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Manage Budgets</h1>
+    <form method="POST">
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Current Budget ($)</th>
+                    <th>Set New Budget ($)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category in categories %}
+                <tr>
+                    <td>{{ category['name'] }}</td>
+                    <td>${{ "%.2f"|format(category['monthly_budget']) }}</td>
+                    <td>
+                        <input type="hidden" name="category_id" value="{{ category['id'] }}">
+                        <input type="number" name="budget" value="{{ category['monthly_budget'] }}" step="0.01">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <button type="submit">Save Changes</button>
+    </form>
+</body>
+</html>
